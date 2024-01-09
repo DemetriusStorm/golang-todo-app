@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/thedevsaddam/renderer"
@@ -23,15 +24,15 @@ const (
 	collectionName string = "todo"
 )
 
-// that the Frontend will display
 type (
+	// struct to db model
 	TodoModel struct {
 		ID        primitive.ObjectID `bson:"id,omitempty"`
 		Title     string             `bson:"title"`
 		Completed bool               `bson:"completed"`
 		CreatedAt time.Time          `bson:"created_at"`
 	}
-
+	// that the Frontend will display
 	Todo struct {
 		ID        string    `json:"id"`
 		Title     string    `json:"title"`
@@ -50,10 +51,16 @@ func init() {
 	defer cancel()
 
 	client, err = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	fmt.Println(err)
+	checkError(err)
 
 	err = client.Ping(ctx, readpref.Primary())
-	fmt.Println(err)
+	checkError(err)
 
 	db = client.Database(dbName)
+}
+
+func checkError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
