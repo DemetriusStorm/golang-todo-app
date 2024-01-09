@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	github.com/go-chi/chi/v5 v5.0.11
 	go.mongodb.org/mongo-driver v1.13.1
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

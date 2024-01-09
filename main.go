@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/thedevsaddam/renderer"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -57,6 +59,21 @@ func init() {
 	checkError(err)
 
 	db = client.Database(dbName)
+}
+
+func main() {
+	server := &http.Server{
+		Addr:         ":9000",
+		Handler:      chi.NewRouter(),
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
+
+	// start the server
+	fmt.Println("Server started on port", 9000)
+	if err := server.ListenAndServe(); err != nil {
+		log.Printf("listen:%s\n", err)
+	}
 }
 
 func checkError(err error) {
