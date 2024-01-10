@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/thedevsaddam/renderer"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -64,10 +65,22 @@ func init() {
 	db = client.Database(dbName)
 }
 
+func homeHandler(rw http.ResponseWriter, r *http.Request) {
+	filePath := "./README.md"
+	// FileView - renders the readme file
+	err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
+	checkError(err)
+}
+
 func main() {
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Get("/", homeHandler)
+	router.Mount("/todo", todoHandlers())
+
 	server := &http.Server{
 		Addr:         ":9000",
-		Handler:      chi.NewRouter(),
+		Handler:      router,
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
 	}
@@ -104,6 +117,35 @@ func main() {
 
 }
 
+// todoHandlers ...
+func todoHandlers() http.Handler {
+	router := chi.NewRouter()
+	router.Group(func(r chi.Router) {
+		r.Get("/", getTodos)
+		r.Post("/", createTodo)
+		r.Put("/{id}", updateTodo)
+		r.Delete("/{id}", deleteTodo)
+	})
+	return router
+}
+
+func getTodos(rw http.ResponseWriter, r *http.Request) {
+	return
+}
+
+func createTodo(rw http.ResponseWriter, r *http.Request) {
+	return
+}
+
+func updateTodo(rw http.ResponseWriter, r *http.Request) {
+	return
+}
+
+func deleteTodo(rw http.ResponseWriter, r *http.Request) {
+	return
+}
+
+// checkError ...
 func checkError(err error) {
 	if err != nil {
 		log.Fatal(err)
