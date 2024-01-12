@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/thedevsaddam/renderer"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -44,6 +45,11 @@ type (
 		Title     string    `json:"title"`
 		Completed bool      `json:"completed"`
 		CreatedAt time.Time `json:"created_at"`
+	}
+	// the structure of the JSON response data returned
+	GetTodoResponse struct {
+		Message string `json:"message"`
+		Data    []Todo `json:"data"`
 	}
 )
 
@@ -120,30 +126,59 @@ func main() {
 // todoHandlers ...
 func todoHandlers() http.Handler {
 	router := chi.NewRouter()
-	router.Group(func(r chi.Router) {
-		r.Get("/", getTodos)
-		r.Post("/", createTodo)
-		r.Put("/{id}", updateTodo)
-		r.Delete("/{id}", deleteTodo)
-	})
+	router.Group(
+		func(r chi.Router) {
+			r.Get("/", getTodos)
+			r.Post("/", createTodo)
+			r.Put("/{id}", updateTodo)
+			r.Delete("/{id}", deleteTodo)
+		})
+
 	return router
 }
 
+// getTodos ...
 func getTodos(rw http.ResponseWriter, r *http.Request) {
-	return
+	var todoListFromDB = []TodoModel{}
+	filter := bson.D{}
+
+	cursor, err := db.Collection(collectionName).Find(context.Background(), filter)
+
+	if err != nil {
+		log.Printf("failed to fetch todo records from the db: %v\n", err)
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Could not fetch the todo collection",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	todoList := []Todo{}
+	if err := cursor.All(context.Background(), &todoListFromDB); err != nil {
+		checkError(err)
+	}
+
+	// loop through the database list, convert TodoModel to JSON and append to the todoList array.
+	for _, td := range todoListFromDB {
+		todoList = append(todoList, Todo{
+			ID:        td.ID.Hex(),
+			Title:     td.Title,
+			Completed: td.Completed,
+			CreatedAt: td.CreatedAt,
+		})
+	}
+	rnd.JSON(rw, http.StatusOK, GetTodoResponse{
+		Message: "All todos retrieved",
+		Data:    todoList,
+	})
 }
 
-func createTodo(rw http.ResponseWriter, r *http.Request) {
-	return
-}
+func createTodo(rw http.ResponseWriter, r *http.Request) {}
 
-func updateTodo(rw http.ResponseWriter, r *http.Request) {
-	return
-}
+func updateTodo(rw http.ResponseWriter, r *http.Request) {}
 
-func deleteTodo(rw http.ResponseWriter, r *http.Request) {
-	return
-}
+func deleteTodo(rw http.ResponseWriter, r *http.Request) {}
 
 // checkError ...
 func checkError(err error) {
