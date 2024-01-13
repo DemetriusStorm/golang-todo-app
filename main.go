@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -52,9 +53,14 @@ type (
 		Message string `json:"message"`
 		Data    []Todo `json:"data"`
 	}
-	// request body struct
+	// create todo
 	CreateTodo struct {
 		Title string `json:"title"`
+	}
+	// update todo
+	UpdateTodo struct {
+		Title     string `json:"title"`
+		Completed bool   `json:"completed"`
 	}
 )
 
@@ -179,6 +185,7 @@ func getTodos(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// createTodo ...
 func createTodo(rw http.ResponseWriter, r *http.Request) {
 	var todoReq CreateTodo
 	if err := json.NewDecoder(r.Body).Decode(&todoReq); err != nil {
@@ -220,7 +227,53 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func updateTodo(rw http.ResponseWriter, r *http.Request) {}
+// updateTodo
+func updateTodo(rw http.ResponseWriter, r *http.Request) {
+	// get the id from the url params
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	res, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		log.Printf("the id param is not a valid a hex value: %v\n", err.Error())
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "The id is Invalid",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// store the user input sent through the request body
+	var updateTodoReq UpdateTodo
+
+	if err := json.NewDecoder(r.Body).Decode(&updateTodoReq); err != nil {
+		log.Printf("failed to decode the json response body data: %v\n", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, err.Error())
+	}
+	if updateTodoReq.Title == "" {
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Title connot be empty",
+		})
+		return
+	}
+
+	// update the todo in the db
+	filter := bson.M{"id": res}
+	update := bson.M{"$set": bson.M{"title": updateTodoReq.Title, "completed": updateTodoReq.Completed}}
+	data, err := db.Collection(collectionName).UpdateOne(r.Context(), filter, update)
+
+	if err != nil {
+		log.Printf("failed to update db collection: %v\n", err.Error())
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to update data in the db",
+			"error":   err.Error(),
+		})
+		return
+	}
+	rnd.JSON(rw, http.StatusOK, renderer.M{
+		"message": "Todo updated successfully",
+		"data":    data.ModifiedCount,
+	})
+}
 
 func deleteTodo(rw http.ResponseWriter, r *http.Request) {}
 
