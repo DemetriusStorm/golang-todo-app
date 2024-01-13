@@ -275,7 +275,31 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func deleteTodo(rw http.ResponseWriter, r *http.Request) {}
+// deleteTodo ...
+func deleteTodo(rw http.ResponseWriter, r *http.Request) {
+	// get the id from the url params
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+	res, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		log.Printf("invalid id: %v\n", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	filter := bson.M{"id": res}
+	if data, err := db.Collection(collectionName).DeleteOne(r.Context(), filter); err != nil {
+		log.Printf("could not delete item from database: %v\n", err.Error())
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "an error occured while deleting todo item",
+			"error":   err.Error(),
+		})
+	} else {
+		rnd.JSON(rw, http.StatusOK, renderer.M{
+			"message": "item deleted successfully",
+			"data":    data,
+		})
+	}
+}
 
 // checkError ...
 func checkError(err error) {
