@@ -98,70 +98,6 @@ func homeHandler(rw http.ResponseWriter, r *http.Request) {
 	checkError(err)
 }
 
-func main() {
-	router := chi.NewRouter()
-	router.Use(middleware.Logger)
-	router.Get("/", homeHandler)
-	router.Mount("/todo", todoHandlers())
-
-	// Serve static files
-	// http.FileServer to serve static files from the 'static' directory on the server
-	fs := http.FileServer(http.Dir("./static"))
-	router.Handle("/static/*", http.StripPrefix("/static/", fs))
-
-	server := &http.Server{
-		Addr:         ":9000",
-		Handler:      router,
-		ReadTimeout:  60 * time.Second,
-		WriteTimeout: 60 * time.Second,
-	}
-
-	// create a channel to receive siglan
-	stopChan := make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	// start the server in a goroutine
-	go func() {
-		fmt.Println("Server started on port", 9000)
-		if err := server.ListenAndServe(); err != nil {
-			log.Printf("listen:%s\n", err)
-		}
-	}()
-
-	// wait for a signal to shut down the server
-	sig := <-stopChan
-	log.Printf("signal received: %v\n", sig)
-
-	// disconnect mongo client from the database
-	if err := client.Disconnect(context.Background()); err != nil {
-		panic(err)
-	}
-	// create a context with a timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// shutdown the server gracefully
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server shutdown failed: %v\n", err)
-	}
-	log.Println("Server shutdown gracefully")
-
-}
-
-// todoHandlers ...
-func todoHandlers() http.Handler {
-	router := chi.NewRouter()
-	router.Group(
-		func(r chi.Router) {
-			r.Get("/", getTodos)
-			r.Post("/", createTodo)
-			r.Put("/{id}", updateTodo)
-			r.Delete("/{id}", deleteTodo)
-		})
-
-	return router
-}
-
 // getTodos ...
 func getTodos(rw http.ResponseWriter, r *http.Request) {
 	var todoListFromDB = []TodoModel{}
@@ -313,6 +249,70 @@ func deleteTodo(rw http.ResponseWriter, r *http.Request) {
 			"data":    data,
 		})
 	}
+}
+
+func main() {
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Get("/", homeHandler)
+	router.Mount("/todo", todoHandlers())
+
+	// Serve static files
+	// http.FileServer to serve static files from the 'static' directory on the server
+	fs := http.FileServer(http.Dir("./static"))
+	router.Handle("/static/*", http.StripPrefix("/static/", fs))
+
+	server := &http.Server{
+		Addr:         ":9000",
+		Handler:      router,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
+
+	// create a channel to receive siglan
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	// start the server in a goroutine
+	go func() {
+		fmt.Println("Server started on port", 9000)
+		if err := server.ListenAndServe(); err != nil {
+			log.Printf("listen:%s\n", err)
+		}
+	}()
+
+	// wait for a signal to shut down the server
+	sig := <-stopChan
+	log.Printf("signal received: %v\n", sig)
+
+	// disconnect mongo client from the database
+	if err := client.Disconnect(context.Background()); err != nil {
+		panic(err)
+	}
+	// create a context with a timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// shutdown the server gracefully
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server shutdown failed: %v\n", err)
+	}
+	log.Println("Server shutdown gracefully")
+
+}
+
+// todoHandlers ...
+func todoHandlers() http.Handler {
+	router := chi.NewRouter()
+	router.Group(
+		func(r chi.Router) {
+			r.Get("/", getTodos)
+			r.Post("/", createTodo)
+			r.Put("/{id}", updateTodo)
+			r.Delete("/{id}", deleteTodo)
+		})
+
+	return router
 }
 
 // checkError ...
