@@ -67,7 +67,13 @@ type (
 func init() {
 	fmt.Println("init func running")
 
-	rnd = renderer.New()
+	rnd = renderer.New(
+		renderer.Options{
+			/* This option allows us to look for files inside the HTML folder
+			with the “.html” extension and render them as templates.*/
+			ParseGlobPattern: "html/*.html", // HTML parsing option
+		},
+	)
 	var err error
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -83,9 +89,12 @@ func init() {
 }
 
 func homeHandler(rw http.ResponseWriter, r *http.Request) {
-	filePath := "./README.md"
+	// filePath := "./README.md"
 	// FileView - renders the readme file
-	err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
+	// err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
+
+	// it returns the indexPage in the HTML template.
+	err := rnd.HTML(rw, http.StatusOK, "indexPage", nil)
 	checkError(err)
 }
 
@@ -94,6 +103,11 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Get("/", homeHandler)
 	router.Mount("/todo", todoHandlers())
+
+	// Serve static files
+	// http.FileServer to serve static files from the 'static' directory on the server
+	fs := http.FileServer(http.Dir("./static"))
+	router.Handle("/static/*", http.StripPrefix("/static/", fs))
 
 	server := &http.Server{
 		Addr:         ":9000",
